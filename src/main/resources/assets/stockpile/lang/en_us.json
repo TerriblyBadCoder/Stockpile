@@ -1,0 +1,11 @@
+{
+  "enchantment.stockpile.whirling": "Whirling",
+  "enchantment.stockpile.whirling.desc": "The anchor pierces enemies, drags everyone along with it when going forward, can hit enemies when going back.",
+  "enchantment.stockpile.infectious": "Infectious",
+  "enchantment.stockpile.infectious.desc": "Applies a debuff which increases the next damage taken by 50%",
+  "enchantment.stockpile.clutch": "Clutch",
+  "enchantment.stockpile.clutch.desc": "Turns you into Anton, the Blast",
+  "enchantment.stockpile.unchained": "Unchained",
+  "enchantment.stockpile.unchained.desc": "Upon hitting the ground or getting recalled, instead of returning to you, the anchor flies off of the chain",
+  "effect.stockpile.blighted": "Blighted"
+}
