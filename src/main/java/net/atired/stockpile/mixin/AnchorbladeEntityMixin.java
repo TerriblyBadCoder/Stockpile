@@ -8,6 +8,12 @@ import dev.doctor4t.arsenal.index.ArsenalSounds;
 import dev.doctor4t.arsenal.util.AnchorOwner;
 import net.atired.stockpile.accessor.WhirlingEntityAccessor;
 import net.atired.stockpile.init.StockpileEnchantmentInit;
+import net.atired.stockpile.init.StockpileStatusEffectInit;
+import net.atired.stockpile.networking.StockpileNetworkingConstants;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.fabricmc.loader.impl.lib.sat4j.core.Vec;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -18,8 +24,10 @@ import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.particle.BlockStateParticleEffect;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
@@ -47,9 +55,15 @@ import java.util.List;
 public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity implements WhirlingEntityAccessor {
     private List<Integer> hitIds = new ArrayList<>();
     @Unique
+    private static TrackedData<Integer> SPINAGE;
+    @Unique
+    private static TrackedData<Integer> OWNERID;
+    @Unique
     private static TrackedData<Integer> UNCHAINEDTICKS;
     static {
         UNCHAINEDTICKS = DataTracker.registerData(AnchorbladeEntityMixin.class, TrackedDataHandlerRegistry.INTEGER);
+        SPINAGE = DataTracker.registerData(AnchorbladeEntityMixin.class, TrackedDataHandlerRegistry.INTEGER);
+        OWNERID = DataTracker.registerData(AnchorbladeEntityMixin.class, TrackedDataHandlerRegistry.INTEGER);
     }
     public AnchorbladeEntityMixin(EntityType<?> type, World world) {
         super((EntityType<? extends PersistentProjectileEntity>) type, world);
@@ -57,8 +71,9 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
 
     @Inject(method = "initDataTracker",at=@At("TAIL"))
     protected void initDataTracker(CallbackInfo ci) {
-
+        this.getDataTracker().startTracking(SPINAGE, 0);
         this.getDataTracker().startTracking(UNCHAINEDTICKS, 0);
+        this.getDataTracker().startTracking(OWNERID, 0);
     }
 
     @Override
@@ -98,6 +113,60 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
 
     @Inject(method = "onEntityHit(Lnet/minecraft/util/hit/EntityHitResult;)V",at =@At("HEAD"),cancellable = true)
     private void onWhirlingEntityHit(EntityHitResult entityHitResult, CallbackInfo ci){
+        if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.SPINTOWIN,getStack())>0 && stockpile$getSpinAge()<120){
+            Entity hitEntity = entityHitResult.getEntity();
+            if(hitEntity == getOwner()){
+                ci.cancel();
+                return;
+            }
+            if(!hasDealtDamage())
+            {
+                ci.cancel();
+                float damage = 8.0F;
+
+                if (hitEntity instanceof LivingEntity livingEntity) {
+                    damage += EnchantmentHelper.getAttackDamage(getTrackedItem(), livingEntity.getGroup());
+                }
+
+                Entity owner = getOwner();
+                SoundEvent soundEvent = this.getHitSound();
+                hitEntity.timeUntilRegen = 0;
+                if (hitEntity.damage(this.getWorld().getDamageSources().create(ArsenalDamageTypes.ANCHOR, this, getOwner()), damage)) {
+                    if (hitEntity.getType() == EntityType.ENDERMAN) {
+                        return;
+                    }
+                    if (hitEntity instanceof LivingEntity) {
+                        LivingEntity hitLivingEntity = (LivingEntity)hitEntity;
+                        if (owner instanceof LivingEntity) {
+
+                            EnchantmentHelper.onUserDamaged(hitLivingEntity, owner);
+                            EnchantmentHelper.onTargetDamaged((LivingEntity)owner, hitLivingEntity);
+                        }
+                        Entity entity = this.getWorld().getEntityById(this.dataTracker.get(OWNERID));
+                        if(entity!=null){
+                            Vec3d vel = entity.getPos().subtract(hitLivingEntity.getPos()).add(0,1.5,0).normalize().multiply(0.4);
+
+                            if(getWorld() instanceof ServerWorld serverWorld){
+                                for(ServerPlayerEntity a : PlayerLookup.tracking(this)) {
+                                    PacketByteBuf byteBufs = PacketByteBufs.create();
+                                    byteBufs.writeDouble(vel.x);
+                                    byteBufs.writeDouble(vel.y);
+                                    byteBufs.writeDouble(vel.z);
+                                    byteBufs.writeInt(this.dataTracker.get(OWNERID));
+                                    ServerPlayNetworking.send(a, StockpileNetworkingConstants.SPEEN_PACKET_ID, byteBufs);
+                                }
+                            }
+                            entity.addVelocity(vel);
+                        }
+
+                        owner.setVelocityClient(owner.getVelocity().x,owner.getVelocity().y,owner.getVelocity().z);
+                        hitLivingEntity.addVelocity(0,0.2,0);
+                        this.onHit(hitLivingEntity);
+                    }
+                }
+                this.playSound(soundEvent, 0.4F, 1.0F);
+            }
+        }
         if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.WHIRLING, getStack())>0 || (EnchantmentHelper.getLevel(StockpileEnchantmentInit.UNCHAINED, getStack())>0)){
             Entity hitEntity = entityHitResult.getEntity();
             if(hitEntity == getOwner()){
@@ -154,6 +223,15 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
     public void stockpile$setUnchainedTicks(int chained) {
         this.getDataTracker().set(UNCHAINEDTICKS,chained);
     }
+    @Override
+    public int stockpile$getSpinAge() {
+        return this.getDataTracker().get(SPINAGE);
+    }
+
+    @Override
+    public void stockpile$setSpinAge(int ticks) {
+        this.getDataTracker().set(SPINAGE,ticks);
+    }
 
     @Shadow public abstract ItemStack getStack();
 
@@ -200,11 +278,67 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
 
     @Inject(method = "tick()V",at = @At("TAIL"))
     private void unchainedTick(CallbackInfo ci){
+
         if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.UNCHAINED, getStack())>0 && isRecalled() ){
         }
     }
     @Inject(method = "tick()V",at = @At("HEAD"))
     private void whirlingTick(CallbackInfo ci){
+        if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.SPINTOWIN, getStack())>0){
+            if(stockpile$getSpinAge()<120)
+            {
+                if(this.inGround){
+                    float radius = 5.0F;
+                    this.getWorld().addParticle(ArsenalParticles.SHOCKWAVE, this.getX(), this.getY(), this.getZ(), 0.0, 0.0, 0.0);
+                    Iterator var14 = this.getWorld().getEntitiesByClass(LivingEntity.class, this.getBoundingBox().expand((double)radius), LivingEntity::isAlive).iterator();
+
+                    while(var14.hasNext()) {
+                        LivingEntity hitLivingEntity = (LivingEntity)var14.next();
+                        float strength = this.getKnockbackForEntity(hitLivingEntity);
+                        if (!((double)strength <= 0.0)) {
+                            this.velocityDirty = true;
+                            Vec3d distance = hitLivingEntity.getPos().add(0.0, (double)(hitLivingEntity.getHeight() / 2.0F), 0.0).subtract(this.getPos());
+                            Vec3d footDistance = hitLivingEntity.getPos().subtract(this.getPos());
+                            if (footDistance.y > distance.y) {
+                                distance = footDistance;
+                            }
+
+                            float proximity = (float)MathHelper.lerp(MathHelper.clamp(distance.length() / (double)radius, 0.0, 1.0), 1.0, 0.0);
+                            Vec3d direction = distance.normalize().multiply((double)(proximity * strength));
+                            hitLivingEntity.addVelocity(direction.x, direction.y, direction.z);
+                            hitLivingEntity.fallDistance = 0.0F;
+                        }
+                    }
+                    this.inGround = false;
+                    this.setRecalled(true);
+                    this.setNoClip(true);
+                    this.stockpile$setSpinAge(121);
+                }
+
+                if(!getWorld().isClient){
+                    this.stockpile$setSpinAge(this.stockpile$getSpinAge()+1);
+                }
+                if(getOwner()!=null && !isRecalled()){
+                    if(getOwner() instanceof LivingEntity livingEntity && this.getDataTracker().get(OWNERID)==0){
+                        this.getDataTracker().set(OWNERID,livingEntity.getId());
+                    }
+                    if(getOwner().getVelocity().y<0)
+                        getOwner().addVelocity(0,0.03,0);
+                    getOwner().fallDistance *= 0.2f;
+
+                    Vec3d dir = getOwner().getPos().add(new Vec3d(2.7,0.2,0).rotateY(this.stockpile$getSpinAge())).subtract(getPos());
+                    this.setVelocity(dir);
+                }
+            }
+            else if(stockpile$getSpinAge()==120&&getOwner() instanceof PlayerEntity player){
+                this.stockpile$setSpinAge(121);
+                setPosition(getOwner().getEyePos().add(getOwner().getRotationVec(0).multiply(2)));
+                player.getItemCooldownManager().set(ArsenalItems.ANCHORBLADE,40);
+                setVelocity(getOwner().getPos().add(getOwner().getRotationVec(0).multiply(64).subtract(getPos())).normalize().multiply(3));
+            }
+
+
+        }
         if(stockpile$getUnchainedTicks()>0){
             if(stockpile$getUnchainedTicks()==3&&getOwner()!=null){
                 getWorld().playSound(getOwner().getX(), getOwner().getY(),getOwner().getZ(), SoundEvents.BLOCK_CHAIN_BREAK, SoundCategory.PLAYERS,4f,0.4f,false);
@@ -238,6 +372,7 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
             for (int i : stockpile$getEntityHitList()){
                 if(getWorld().getEntityById(i) instanceof LivingEntity hitLivingEntity){
                     Entity owner = getOwner();
+
                     Vec3d dir = hitLivingEntity.getPos().subtract(getPos()).normalize().multiply(-2).add(getVelocity().multiply(0.2f));
                     hitLivingEntity.setVelocity(dir.x, dir.y, dir.z);
 
@@ -249,7 +384,7 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
 
     @Override
     protected void onBlockHit(BlockHitResult blockHitResult) {
-        if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.UNCHAINED, getStack())>0 && isRecalled()){
+        if((EnchantmentHelper.getLevel(StockpileEnchantmentInit.UNCHAINED, getStack())>0 && isRecalled())){
             float radius = 5.0F;
             this.getWorld().addParticle(ArsenalParticles.SHOCKWAVE, this.getX(), this.getY(), this.getZ(), 0.0, 0.0, 0.0);
             Iterator var14 = this.getWorld().getEntitiesByClass(LivingEntity.class, this.getBoundingBox().expand((double)radius), LivingEntity::isAlive).iterator();
@@ -271,7 +406,10 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
                     hitLivingEntity.fallDistance = 0.0F;
                 }
             }
-            this.inGround=false;
+            if((EnchantmentHelper.getLevel(StockpileEnchantmentInit.UNCHAINED, getStack())>0 && isRecalled())){
+                this.inGround=false;
+            }
+
             Vec3d dir = new Vec3d(blockHitResult.getSide().getUnitVector());
             if(dir.x!=0){
                 setVelocity(getVelocity().multiply(-1,1,1));
@@ -286,6 +424,7 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
                 getWorld().addParticle(new BlockStateParticleEffect(ParticleTypes.BLOCK,getWorld().getBlockState(blockHitResult.getBlockPos())),getX(),getY(),getZ(),(getVelocity().z+Math.random()-0.5)*3,(getVelocity().y+Math.random()-0.5)*3,(getVelocity().z+Math.random()-0.5)*3);
             }
             setVelocity(getVelocity().multiply(0.94));
+
         }
         else if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.UNCHAINED, getStack())>0){
             unchainedNewAnchor();
@@ -353,6 +492,7 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
             args.set(0,getVelocity());
 
         }
+
         if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.WHIRLING, getStack())>0){
             Vec3d vel = args.get(0);
             args.set(0,getVelocity().lerp(vel,0.07));

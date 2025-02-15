@@ -46,7 +46,7 @@ public abstract class AnchorbladeEntityRendererMixin extends EntityRenderer<Anch
 
     @Shadow @Final private ItemRenderer itemRenderer;
     @Unique
-    private static final Identifier TEXTURE = Stockpile.id("textures/entity/anchorspeen.png");
+    private static final Identifier TEXTURE = Stockpile.id("textures/entity/anchorspeen_side.png");
 
     protected AnchorbladeEntityRendererMixin(EntityRendererFactory.Context ctx) {
         super(ctx);
@@ -71,6 +71,22 @@ public abstract class AnchorbladeEntityRendererMixin extends EntityRenderer<Anch
             p_253347_.mul(((new Quaternionf()).rotationYXZ(yRot,zRot,xRot)));
         };
     }
+    @Inject(method = "render(Ldev/doctor4t/arsenal/entity/AnchorbladeEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V", at = @At(value = "INVOKE",shift = At.Shift.AFTER,ordinal = 1, target = "Lnet/minecraft/util/math/RotationAxis;rotationDegrees(F)Lorg/joml/Quaternionf;"))
+    private void whirlingRotZ(AnchorbladeEntity anchorbladeEntity, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, CallbackInfo ci)
+    {   if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.SPINTOWIN, anchorbladeEntity.getStack())>0 && anchorbladeEntity instanceof WhirlingEntityAccessor accessor && !accessor.stockpile$inGround() &&accessor.stockpile$getSpinAge()<120) {
+            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90f));
+        }
+    }
+    @ModifyArgs(method = "render(Ldev/doctor4t/arsenal/entity/AnchorbladeEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V", at = @At(value = "INVOKE",ordinal = 1, target = "Lnet/minecraft/util/math/MathHelper;lerp(FFF)F"))
+    private void whirlingRenderPitch(Args args, AnchorbladeEntity anchorbladeEntity, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light){
+        if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.SPINTOWIN, anchorbladeEntity.getStack())>0 && anchorbladeEntity instanceof WhirlingEntityAccessor accessor && !accessor.stockpile$inGround() &&accessor.stockpile$getSpinAge()<120){
+
+            float arg0 = args.get(2);
+            float arg1 = args.get(1);
+            args.set(2,arg0);
+            args.set(1,arg1);
+        }
+    }
     @ModifyArgs(method = "render(Ldev/doctor4t/arsenal/entity/AnchorbladeEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V", at = @At(value = "INVOKE",ordinal = 0, target = "Lnet/minecraft/util/math/MathHelper;lerp(FFF)F"))
     private void whirlingRenderYaw(Args args, AnchorbladeEntity anchorbladeEntity, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light){
         if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.WHIRLING, anchorbladeEntity.getStack())>0 && anchorbladeEntity instanceof WhirlingEntityAccessor accessor && !accessor.stockpile$inGround()){
@@ -79,6 +95,17 @@ public abstract class AnchorbladeEntityRendererMixin extends EntityRenderer<Anch
             float arg1 = args.get(1);
             args.set(2,arg0+bonusrot);
             args.set(1,arg1+bonusrot);
+        }
+        if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.SPINTOWIN, anchorbladeEntity.getStack())>0 && anchorbladeEntity instanceof WhirlingEntityAccessor accessor && !accessor.stockpile$inGround()){
+            if(anchorbladeEntity.getOwner() !=null){
+                Vec3d dir = anchorbladeEntity.getLerpedPos(tickDelta).subtract(anchorbladeEntity.getOwner().getLerpedPos(tickDelta)).normalize();
+                float yaw2 = (float) Math.atan2(dir.x, dir.z)/3.14f*180;
+                float arg0 = args.get(2);
+                float arg1 = args.get(1);
+                args.set(2,yaw2);
+                args.set(1,yaw2);
+            }
+
         }
     }
     @Inject(method = "render(Ldev/doctor4t/arsenal/entity/AnchorbladeEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V",at=@At("HEAD"),cancellable = true)
@@ -162,9 +189,55 @@ public abstract class AnchorbladeEntityRendererMixin extends EntityRenderer<Anch
             }
             ci.cancel();
         }
+        if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.SPINTOWIN, anchorbladeEntity.getStack())>0&&!anchorbladeEntity.isRecalled()&&anchorbladeEntity instanceof WhirlingEntityAccessor accessor &&accessor.stockpile$getSpinAge()<120){
+            Vec3d dir2 = anchorbladeEntity.getLerpedPos(tickDelta).subtract(anchorbladeEntity.getOwner().getLerpedPos(tickDelta)).normalize();
+            float yawAngle = (float) Math.atan2(dir2.x, dir2.z)/3.14f*180+45;
+
+            float pitchAngle = 0;
+            matrices.push();
+            matrices.translate(0, 0.7, 0.0);
+            if(anchorbladeEntity.getOwner() !=null) {
+                Vec3d dir = anchorbladeEntity.getLerpedPos(tickDelta).subtract(anchorbladeEntity.getOwner().getLerpedPos(tickDelta)).multiply(-1);
+                matrices.translate(dir.x,dir.y,dir.z);
+            }
+            MatrixStack.Entry matrixEntry = matrices.peek();
+            Matrix4f modelMatrix = matrixEntry.getPositionMatrix();
+            Matrix3f normal = matrixEntry.getNormalMatrix();
+            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yawAngle));
+            matrices.translate(-1.7, 0, 0.0);
+            VertexConsumer vertexconsumer = vertexConsumers.getBuffer(RenderLayer.getEntityTranslucent(TEXTURE));
+            Vec3d[] vec3ds = new Vec3d[]{new Vec3d(-1,0,-1),new Vec3d(-1,0,1),new Vec3d(1,0,1),new Vec3d(1,0,-1)};
+            float velscale =MathHelper.clamp((1f-accessor.stockpile$getSpinAge()/120f)/2f+0.4f,0f,1f);
+            if(accessor.stockpile$getSpinAge()>120){
+                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-yawAngle));
+
+                matrices.pop();
+                return;
+            }
+            for(int i=0; i<vec3ds.length;i++){
+                vec3ds[i] = vec3ds[i].multiply(2);
+            }
+            this.vertexMine(vec3ds[0], vertexconsumer, 0, 0, modelMatrix, normal, 0xFFFFFF,velscale);
+            this.vertexMine(vec3ds[1], vertexconsumer, 0, 1, modelMatrix, normal, 0xFFFFFF,velscale);
+            this.vertexMine(vec3ds[2], vertexconsumer, 1, 1, modelMatrix, normal, 0xFFFFFF,velscale);
+            this.vertexMine(vec3ds[3], vertexconsumer, 1, 0, modelMatrix, normal, 0xFFFFFF,velscale);
+            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-yawAngle));
+
+            matrices.pop();
+        }
 
     }
-    private void vertexMine(Vec3d vec, VertexConsumer vertexConsumer, float u, float v, Matrix4f modelMatrix, Matrix3f normal, int light,float alpha) {
+
+    @Override
+    public boolean shouldRender(AnchorbladeEntity entity, Frustum frustum, double x, double y, double z) {
+        if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.SPINTOWIN, entity.getStack())>0 && entity instanceof WhirlingEntityAccessor accessor && accessor.stockpile$getSpinAge()<120)
+        {
+            return true;
+        }
+        return super.shouldRender(entity, frustum, x, y, z);
+    }
+
+    private void vertexMine(Vec3d vec, VertexConsumer vertexConsumer, float u, float v, Matrix4f modelMatrix, Matrix3f normal, int light, float alpha) {
         vertexConsumer.vertex(modelMatrix, (float)vec.x, (float)vec.y, (float)vec.z).color(1f, 1f, 1f, alpha).texture(u, v).overlay(OverlayTexture.DEFAULT_UV).light(light).normal(normal, 0.0F, 1.0F, 0.0F).next();
     }
 }

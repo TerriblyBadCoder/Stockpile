@@ -13,6 +13,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.util.math.Vec3d;
 
 public class StockpileClient implements ClientModInitializer {
     @Override
@@ -23,6 +24,18 @@ public class StockpileClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register(new ClutchGUIRenderEvent());
     }
     public void registerMessages(){
+        ClientPlayNetworking.registerGlobalReceiver(StockpileNetworkingConstants.SPEEN_PACKET_ID, (client, handler, buf, responseSender) -> {
+            double x = buf.readDouble();
+            double y = buf.readDouble();
+            double z = buf.readDouble();
+            int id = buf.readInt();
+            Vec3d dir = new Vec3d(x,y,z);
+            Entity entity = client.player.getWorld().getEntityById(id);
+            if(entity instanceof LivingEntity living){
+                entity.addVelocity(dir);
+            }
+
+                });
         ClientPlayNetworking.registerGlobalReceiver(StockpileNetworkingConstants.BLIGHTED_PACKET_ID, (client, handler, buf, responseSender) -> {
             if(client.player!=null)
             {
@@ -30,15 +43,12 @@ public class StockpileClient implements ClientModInitializer {
                 int amp = buf.readInt();
                 int dur = buf.readInt();
                 boolean bool = buf.readBoolean();
-                System.out.println("WOOOOO");
                 Entity entity = client.player.getWorld().getEntityById(id);
                 if(entity instanceof LivingEntity living){
-
                     if(bool)
                         living.addStatusEffect(new StatusEffectInstance(StockpileStatusEffectInit.BLIGHTED_EFFECT,dur,amp));
                     else
                         living.removeStatusEffect(StockpileStatusEffectInit.BLIGHTED_EFFECT);
-
                 }
                 buf.clear();
             }

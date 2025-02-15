@@ -1,5 +1,6 @@
 package net.atired.stockpile.mixin;
 
+import dev.doctor4t.arsenal.index.ArsenalDamageTypes;
 import net.atired.stockpile.Stockpile;
 import net.atired.stockpile.accessor.ClutchPlayerAccessor;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
@@ -43,7 +44,6 @@ public class ClutchPlayerRendererMixin {
                 renderTrail(accessor,abstractClientPlayerEntity,tickDelta,matrices,vertexConsumers,1f,1,1,1f,light,0,amult);
                 matrices.pop();
             }
-
         }
     }
     private Consumer<Quaternionf> rot(float yRot, float xRot,float zRot)

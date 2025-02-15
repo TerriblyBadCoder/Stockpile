@@ -30,6 +30,7 @@ public class AnchorbladeItemMixin {
         if (user instanceof AnchorOwner owner) {
             boolean reeling = EnchantmentHelper.getLevel(StockpileEnchantmentInit.WHIRLING, stack) > 0;
             boolean unchained = EnchantmentHelper.getLevel(StockpileEnchantmentInit.UNCHAINED, stack) > 0;
+            boolean spintowinning = EnchantmentHelper.getLevel(StockpileEnchantmentInit.SPINTOWIN, stack) > 0;
             if (owner.arsenal$isAnchorActive(hand,false) && unchained){
                 if(!owner.arsenal$getAnchor(hand,false).isRecalled())
                 {
@@ -50,6 +51,15 @@ public class AnchorbladeItemMixin {
                     }
 
 
+                }
+                cir.cancel();
+                cir.setReturnValue(TypedActionResult.fail(stack));
+                return;
+            }
+            if(owner.arsenal$isAnchorActive(hand,false) &&spintowinning&&!owner.arsenal$getAnchor(hand,false).isRecalled()){
+                AnchorbladeEntity anchorBlade = owner.arsenal$getAnchor(hand,false);
+                if(anchorBlade instanceof WhirlingEntityAccessor accessor){
+                    accessor.stockpile$setSpinAge(120);
                 }
                 cir.cancel();
                 cir.setReturnValue(TypedActionResult.fail(stack));

@@ -7,6 +7,8 @@ public interface WhirlingEntityAccessor {
     void stockpile$clearHitList();
     void stockpile$setUnchainedTicks(int chained);
     int stockpile$getUnchainedTicks();
+    int stockpile$getSpinAge();
+    void stockpile$setSpinAge(int ticks);
     boolean stockpile$inGround();
     List<Integer> stockpile$getEntityHitList();
 }

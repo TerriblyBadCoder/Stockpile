@@ -5,6 +5,8 @@
   "enchantment.stockpile.infectious.desc": "Applies a debuff which increases the next damage taken by 50%",
   "enchantment.stockpile.clutch": "Clutch",
   "enchantment.stockpile.clutch.desc": "Turns you into Anton, the Blast",
+  "enchantment.stockpile.spin_to_win": "Revolving",
+  "enchantment.stockpile.spin_to_win.desc": "Instead of being thrown forward, the anchor spins around you",
   "enchantment.stockpile.unchained": "Unchained",
   "enchantment.stockpile.unchained.desc": "Upon hitting the ground or getting recalled, instead of returning to you, the anchor flies off of the chain",
   "effect.stockpile.blighted": "Blighted"
