@@ -7,7 +7,9 @@ import dev.doctor4t.arsenal.index.ArsenalParticles;
 import dev.doctor4t.arsenal.index.ArsenalSounds;
 import dev.doctor4t.arsenal.util.AnchorOwner;
 import net.atired.stockpile.accessor.WhirlingEntityAccessor;
+import net.atired.stockpile.entities.ThrownAxeEntity;
 import net.atired.stockpile.init.StockpileEnchantmentInit;
+import net.atired.stockpile.init.StockpileParticleInit;
 import net.atired.stockpile.init.StockpileStatusEffectInit;
 import net.atired.stockpile.networking.StockpileNetworkingConstants;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
@@ -76,6 +78,8 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
         this.getDataTracker().startTracking(OWNERID, 0);
     }
 
+
+
     @Override
     public void stockpile$addToEntityHit(int id) {
         hitIds.add(id);
@@ -113,6 +117,23 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
 
     @Inject(method = "onEntityHit(Lnet/minecraft/util/hit/EntityHitResult;)V",at =@At("HEAD"),cancellable = true)
     private void onWhirlingEntityHit(EntityHitResult entityHitResult, CallbackInfo ci){
+        if(entityHitResult.getEntity()!=null&&entityHitResult.getEntity() instanceof ThrownAxeEntity entity&&EnchantmentHelper.getLevel(StockpileEnchantmentInit.SANGUINE,entity.getStack())==0){
+                if(entity.getOwner()==getOwner()){
+                    if(getWorld() instanceof ServerWorld serverWorld){
+                        serverWorld.spawnParticles(StockpileParticleInit.RETURNED_PARTICLE,entity.getX(),entity.getY(),entity.getZ(),1,0,0,0,0);
+                    }
+
+                    if(getOwner() instanceof PlayerEntity player && !player.getAbilities().creativeMode){
+
+                        if(!player.giveItemStack(entity.getStack())){
+                            player.dropItem(entity.getStack(),true);
+                        }
+                    }
+                    entity.discard();
+                }
+            ci.cancel();
+            return;
+        }
         if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.SPINTOWIN,getStack())>0 && stockpile$getSpinAge()<120){
             Entity hitEntity = entityHitResult.getEntity();
             if(hitEntity == getOwner()){
@@ -175,6 +196,9 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
             }
             if(!hasDealtDamage())
             {
+                if(getOwner() instanceof PlayerEntity user) {
+                    user.getItemCooldownManager().set(ArsenalItems.ANCHORBLADE, 80);
+                }
                 for (int id : stockpile$getEntityHitList()){
                     if(hitEntity == getWorld().getEntityById(id)){
                         ci.cancel();
@@ -282,6 +306,13 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
         if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.UNCHAINED, getStack())>0 && isRecalled() ){
         }
     }
+
+    @Override
+    public void stockpile$removeground() {
+        this.setOnGround(false);
+        this.inGround = false;
+    }
+
     @Inject(method = "tick()V",at = @At("HEAD"))
     private void whirlingTick(CallbackInfo ci){
         if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.SPINTOWIN, getStack())>0){
@@ -363,11 +394,6 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
         }
 
         if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.WHIRLING, getStack())>0 ){
-            if(isRecalled())
-            {
-                this.inGround = false;
-                this.setNoClip(true);
-            }
 
             for (int i : stockpile$getEntityHitList()){
                 if(getWorld().getEntityById(i) instanceof LivingEntity hitLivingEntity){
@@ -430,6 +456,13 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
             unchainedNewAnchor();
         }
         else{
+            if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.WHIRLING, getStack())>0){
+
+                if(this.getOwner()!=null){
+                    this.setPosition(this.getPos().subtract(this.getPos().subtract(this.getOwner().getPos()).normalize().multiply(0.5)));
+                }
+
+            }
             super.onBlockHit(blockHitResult);
             this.setSound(SoundEvents.BLOCK_CHAIN_STEP);
         }
@@ -493,14 +526,7 @@ public abstract class AnchorbladeEntityMixin extends PersistentProjectileEntity 
 
         }
 
-        if(EnchantmentHelper.getLevel(StockpileEnchantmentInit.WHIRLING, getStack())>0){
-            Vec3d vel = args.get(0);
-            args.set(0,getVelocity().lerp(vel,0.07));
-            this.setNoClip(false);
-            if(this.stockpile$getEntityHitList().stream().count()>0){
-                this.stockpile$clearHitList();
-            }
-        }
+
     }
     @Redirect(method = "tick()V",at = @At(value = "INVOKE", target = "Ldev/doctor4t/arsenal/entity/AnchorbladeEntity;getY()D"))
     private double unchainedReelbackTick(AnchorbladeEntity instance){

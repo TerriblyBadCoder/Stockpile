@@ -5,6 +5,9 @@ import eu.midnightdust.lib.config.MidnightConfig;
 import net.atired.stockpile.accessor.ClutchPlayerAccessor;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.data.DataTracker;
+import net.minecraft.entity.data.TrackedData;
+import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -19,7 +22,9 @@ public abstract class ClutchPlayerMixin extends LivingEntity implements ClutchPl
 
     private Vec3d[] trailPositions = new Vec3d[64];
     private int trailPointer = -1;
-    private int trailTicks=0;
+
+    @Unique
+    private static TrackedData<Integer> TRAILTICKS;
 
     protected ClutchPlayerMixin(EntityType<? extends LivingEntity> entityType, World world) {
         super(entityType, world);
@@ -55,7 +60,8 @@ public abstract class ClutchPlayerMixin extends LivingEntity implements ClutchPl
     @Inject(method = "tick",at=@At("TAIL"))
     private void clutchTick(CallbackInfo ci){
        if(stockpile$getClutchTicks()>0){
-           stockpile$setClutchTicks(stockpile$getClutchTicks()-1);
+           if(!getWorld().isClient())
+            stockpile$setClutchTicks(stockpile$getClutchTicks()-1);
            Vec3d trailAt = this.getPos().add(0, 0.2, 0);
            if (trailPointer == -1) {
                Vec3d backAt = trailAt;
@@ -80,11 +86,18 @@ public abstract class ClutchPlayerMixin extends LivingEntity implements ClutchPl
 
     @Override
     public int stockpile$getClutchTicks() {
-        return this.trailTicks;
+        return this.dataTracker.get(TRAILTICKS);
     }
 
     @Override
     public void stockpile$setClutchTicks(int time) {
-        this.trailTicks=time;
+        this.dataTracker.set(TRAILTICKS,time);
+    }
+    static {
+        TRAILTICKS = DataTracker.registerData(ClutchPlayerMixin.class, TrackedDataHandlerRegistry.INTEGER);
+    }
+    @Inject(method = "initDataTracker",at=@At("TAIL"))
+    protected void initDataTracker(CallbackInfo ci) {
+        this.getDataTracker().startTracking(TRAILTICKS, 0);
     }
 }

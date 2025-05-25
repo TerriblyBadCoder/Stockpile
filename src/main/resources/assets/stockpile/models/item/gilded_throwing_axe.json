@@ -1,0 +1,6 @@
+{
+  "parent": "stockpile:item/throwing_axe",
+  "textures": {
+    "layer0": "stockpile:item/gilded_throwing_axe"
+  }
+}

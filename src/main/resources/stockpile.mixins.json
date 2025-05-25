@@ -8,13 +8,16 @@
     "AnchorbladeItemMixin",
     "BlightedLivingEntityMixin",
     "ClutchPlayerMixin",
-    "ClutchScytheMixin"
+    "ClutchScytheMixin",
+    "ScytheItemMixin",
+    "ZombieEntityMixin"
   ],
   "client": [
     "AnchorbladeEntityRendererMixin",
     "BlightedLivingEntityRendererMixin",
     "BloodScytheEntityRendererMixin",
-    "ClutchPlayerRendererMixin"
+    "ClutchPlayerRendererMixin",
+    "DebtInGameHudMixin"
   ],
   "injectors": {
     "defaultRequire": 1

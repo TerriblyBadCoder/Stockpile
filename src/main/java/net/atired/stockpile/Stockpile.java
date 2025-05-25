@@ -1,7 +1,9 @@
 package net.atired.stockpile;
 
+import eu.midnightdust.lib.config.MidnightConfig;
 import net.atired.stockpile.enchantments.WhirlingEnchantment;
 import net.atired.stockpile.init.StockpileEnchantmentInit;
+import net.atired.stockpile.init.StockpileItemInit;
 import net.atired.stockpile.init.StockpileParticleInit;
 import net.atired.stockpile.init.StockpileStatusEffectInit;
 import net.fabricmc.api.ModInitializer;
@@ -22,8 +24,10 @@ public class Stockpile implements ModInitializer {
     }
     @Override
     public void onInitialize() {
+        StockpileItemInit.init();
         StockpileEnchantmentInit.init();
         StockpileStatusEffectInit.init();
+        MidnightConfig.init(MODID,StockpileConfig.class);
         StockpileParticleInit.registerParticles();
     }
 }

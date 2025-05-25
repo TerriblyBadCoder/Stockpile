@@ -68,15 +68,16 @@ public class AnchorbladeItemMixin {
             if (owner.arsenal$isAnchorActive(hand,false) && reeling) {
                 
                 if(!owner.arsenal$getAnchor(hand,false).isRecalled() && owner.arsenal$getAnchor(hand,false).getVelocity().length()>0.12f)
-                    owner.arsenal$getAnchor(hand,false).addVelocity(user.getRotationVec(0).multiply(2.1));
+                    owner.arsenal$getAnchor(hand,false).addVelocity(user.getRotationVec(0).multiply(-2.1));
                 owner.arsenal$getAnchor(hand,false).setRecalled(true);
 
                 if(owner.arsenal$getAnchor(hand,false) instanceof WhirlingEntityAccessor whirlingEntityAccessor){
+                    whirlingEntityAccessor.stockpile$removeground();
                     whirlingEntityAccessor.stockpile$clearHitList();
                 }
                 cir.cancel();
                 cir.setReturnValue(TypedActionResult.fail(stack));
-                return;
+
             }
         }
     }

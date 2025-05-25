@@ -9,5 +9,15 @@
   "enchantment.stockpile.spin_to_win.desc": "Instead of being thrown forward, the anchor spins around you",
   "enchantment.stockpile.unchained": "Unchained",
   "enchantment.stockpile.unchained.desc": "Upon hitting the ground or getting recalled, instead of returning to you, the anchor flies off of the chain",
-  "effect.stockpile.blighted": "Blighted"
+  "enchantment.stockpile.sanguine": "Sanguine",
+  "enchantment.stockpile.sanguine.desc": "Throwing the axe no longer spends it, but gives you health debt",
+  "enchantment.stockpile.recall": "Recall",
+  "enchantment.stockpile.recall.desc": "The axe arcs at a different angle, turns back over time and pierces enemies",
+  "effect.stockpile.blighted": "Blighted",
+  "item.stockpile.throwing_axe": "Throwing Axe",
+
+  "stockpile.midnightconfig.text2":"Yeah, ,..",
+  "stockpile.midnightconfig.showInfo":"Spewing rework",
+  "stockpile.midnightconfig.title":"Stockpile",
+  "stockpile.midnightconfig.main":"The one and only Stockpile option"
 }

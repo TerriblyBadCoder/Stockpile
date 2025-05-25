@@ -3,6 +3,7 @@ package net.atired.stockpile.mixin;
 import dev.doctor4t.arsenal.client.render.entity.AnchorbladeEntityRenderer;
 import dev.doctor4t.arsenal.client.render.entity.BloodScytheEntityRenderer;
 import dev.doctor4t.arsenal.entity.BloodScytheEntity;
+import net.atired.stockpile.StockpileConfig;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -29,6 +30,8 @@ public class BloodScytheEntityRendererMixin {
 
     @Inject(method = "render(Ldev/doctor4t/arsenal/entity/BloodScytheEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V",at = @At("TAIL"))
     private void fancyRender(BloodScytheEntity bloodScythe, float f, float g, MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int i, CallbackInfo ci){
+        if(!StockpileConfig.showInfo)
+            return;
         matrixStack.push();
         Vec3d delta = bloodScythe.getVelocity().normalize().multiply(0.6);
         matrixStack.translate(delta.x, delta.y, delta.z);

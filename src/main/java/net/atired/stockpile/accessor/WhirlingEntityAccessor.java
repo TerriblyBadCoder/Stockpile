@@ -5,6 +5,7 @@ import java.util.List;
 public interface WhirlingEntityAccessor {
     void stockpile$addToEntityHit(int id);
     void stockpile$clearHitList();
+    void stockpile$removeground();
     void stockpile$setUnchainedTicks(int chained);
     int stockpile$getUnchainedTicks();
     int stockpile$getSpinAge();
